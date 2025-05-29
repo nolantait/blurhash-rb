@@ -9,6 +9,7 @@ module Blurhash
   # Your code goes here...
 
   ValidationError = Class.new(Error)
+  InvalidCharacter = Class.new(StandardError)
 
   def self.encode(pixels:, width:, height:, component_x: 4, component_y: 3)
     Encode.call(pixels:, width:, height:, component_x:, component_y:)

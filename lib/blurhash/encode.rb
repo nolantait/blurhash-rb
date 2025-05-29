@@ -4,8 +4,20 @@ module Blurhash
   class Encode
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
+    # Encodes an image into a BlurHash string.
+    # (see #call)
+    # @param (see #call)
+    # @return (see #call)
     def self.call(...) = new.call(...)
 
+    # @param pixels [Array<Integer>] The pixel data in sRGB format.
+    # @param width [Integer] The width of the image.
+    # @param height [Integer] The height of the image.
+    # @param component_x [Integer] The number of components in the x
+    #   direction (1-9).
+    # @param component_y [Integer] The number of components in the y
+    #   direction (1-9).
+    # @return [String] The BlurHash string.
     def call(pixels:, width:, height:, component_x:, component_y:)
       if component_x < 1 ||
           component_x > 9 ||
@@ -62,6 +74,15 @@ module Blurhash
 
     private
 
+    # Multiplies the basis function for each pixel and returns the
+    # average color value.
+    #
+    # @param pixels [Array<Integer>] The pixel data in sRGB format.
+    # @param width [Integer] The width of the image.
+    # @param height [Integer] The height of the image.
+    # @param block [Proc] A block that takes the x and y coordinates
+    #   and returns the basis function value for that pixel.
+    # @return [Array<Float>] The average color value in linear RGB format.
     def multiply_basis_function(pixels, width, height, &)
       r = g = b = 0.0
       bytes_per_pixel = 3
@@ -83,6 +104,10 @@ module Blurhash
       [r * scale, g * scale, b * scale]
     end
 
+    # Encodes the DC (dominant color) value into a single integer.
+    #
+    # @param value [Array<Float>] The average color value in linear RGB format.
+    # @return [Integer] The encoded DC value.
     def encode_dc(value)
       r = linear_to_srgb(value[0])
       g = linear_to_srgb(value[1])
@@ -90,6 +115,11 @@ module Blurhash
       (r << 16) + (g << 8) + b
     end
 
+    # Encodes the AC (additional color) value into a single integer.
+    #
+    # @param value [Array<Float>] The average color value in linear RGB format.
+    # @param maximum_value [Float] The maximum value for the AC components.
+    # @return [Integer] The encoded AC value.
     def encode_ac(value, maximum_value)
       quant_r = ((sign_pow(value[0] / maximum_value, 0.5) * 9) + 9.5)
         .floor
@@ -104,11 +134,19 @@ module Blurhash
       (quant_r * 19 * 19) + (quant_g * 19) + quant_b
     end
 
+    # Converts an sRGB value to linear RGB format.
+    #
+    # @param value [Integer] The sRGB value (0-255).
+    # @return [Float] The linear RGB value (0.0-1.0).
     def srgb_to_linear(value)
       v = value / 255.0
       v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055)**2.4
     end
 
+    # Converts a linear RGB value to sRGB format.
+    #
+    # @param value [Float] The linear RGB value (0.0-1.0).
+    # @return [Integer] The sRGB value (0-255).
     def linear_to_srgb(value)
       value = value.clamp(0, 1)
 
@@ -119,6 +157,11 @@ module Blurhash
       end
     end
 
+    # Raises the value to the specified exponent, preserving the sign.
+    #
+    # @param val [Float] The value to raise.
+    # @param exp [Float] The exponent to raise the value to.
+    # @return [Float] The signed power of the value.
     def sign_pow(val, exp)
       (val.abs**exp) * (val.negative? ? -1 : 1)
     end
