@@ -42,9 +42,7 @@ module Blurhash
       hash << Base83.encode(size_flag, 1)
 
       if ac.any?
-        actual_max = ac
-          .map(&:max)
-          .max
+        actual_max = ac.map(&:max).max
         quant_max = ((actual_max * 166) - 0.5).floor.clamp(0, 82)
         max_val = (quant_max + 1) / 166.0
         hash << Base83.encode(quant_max, 1)
@@ -112,13 +110,13 @@ module Blurhash
     end
 
     def linear_to_srgb(value)
-      v = if value <= 0.0031308
-        value * 12.92
-      else
-        (1.055 * (value**(1.0 / 2.4))) - 0.055
-      end
+      value = value.clamp(0, 1)
 
-      [((v * 255) + 0.5).floor, 0].max.clamp(0, 255)
+      if value <= 0.0031308
+        ((value * 12.92 * 255) + 0.5).truncate(0)
+      else
+        ((((1.055 * (value**(1.0 / 2.4))) - 0.055) * 255) + 0.5).truncate(0)
+      end
     end
 
     def sign_pow(val, exp)
