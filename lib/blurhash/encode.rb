@@ -1,12 +1,17 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/AbcSize
 module Blurhash
   # Encodes an image into a BlurHash string.
   class Encode
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-
     # Error raised when the arguments to Encode.call is invalid.
     ValidationError = Class.new(Error)
+
+    Input = Data.define(:pixels, :width, :height, :component_x, :component_y) do
+      def size_flag
+        (component_x - 1) + ((component_y - 1) * 9)
+      end
+    end
 
     # Encodes an image into a BlurHash string.
     # (see #call)
@@ -23,57 +28,34 @@ module Blurhash
     #   direction (1-9).
     # @return [String] The BlurHash string.
     def call(pixels:, width:, height:, component_x:, component_y:)
-      if component_x < 1 ||
-          component_x > 9 ||
-          component_y < 1 ||
-          component_y > 9
-        raise ValidationError,
-          "BlurHash must have between 1 and 9 components"
-      end
-      unless pixels.length == width * height * 3
-        raise ValidationError,
-          "Width and height must match the pixels array"
-      end
+      input = Input.new(pixels:, width:, height:, component_x:, component_y:)
+      validate_input(input)
 
-      factors = []
+      dominant_color, additional_colors = build_factors(input)
 
-      component_y.times do |y|
-        component_x.times do |x|
-          normalisation = x.zero? && y.zero? ? 1 : 2
-          factor = multiply_basis_function(pixels, width, height) do |i, j|
-            normalisation *
-              Math.cos(Math::PI * x * i / width) *
-              Math.cos(Math::PI * y * j / height)
-          end
-          factors << factor
+      (+"").tap do |hash|
+        hash << Base83.encode(number: input.size_flag, length: 1)
+
+        if additional_colors.any?
+          quant_max = additional_colors
+            .map(&:max)
+            .max
+            .then { ((it * 166) - 0.5).floor.clamp(0, 82) }
+          max_val = (quant_max + 1) / 166.0
+          hash << Base83.encode(number: quant_max, length: 1)
+        else
+          max_val = 1.0
+          hash << Base83.encode(number: 0, length: 1)
+        end
+
+        encoded_number = encode_dominant_color(dominant_color)
+        hash << Base83.encode(number: encoded_number, length: 4)
+
+        additional_colors.each do |factor|
+          encoded_number = encode_additional_color(factor, max_val)
+          hash << Base83.encode(number: encoded_number, length: 2)
         end
       end
-
-      dc = factors[0]
-      ac = factors[1..]
-
-      hash = +""
-
-      size_flag = (component_x - 1) + ((component_y - 1) * 9)
-      hash << Base83.encode(number: size_flag, length: 1)
-
-      if ac.any?
-        actual_max = ac.map(&:max).max
-        quant_max = ((actual_max * 166) - 0.5).floor.clamp(0, 82)
-        max_val = (quant_max + 1) / 166.0
-        hash << Base83.encode(number: quant_max, length: 1)
-      else
-        max_val = 1.0
-        hash << Base83.encode(number: 0, length: 1)
-      end
-
-      hash << Base83.encode(number: encode_dc(dc), length: 4)
-
-      ac.each do |factor|
-        hash << Base83.encode(number: encode_ac(factor, max_val), length: 2)
-      end
-
-      hash
     end
 
     private
@@ -87,7 +69,7 @@ module Blurhash
     # @param block [Proc] A block that takes the x and y coordinates
     #   and returns the basis function value for that pixel.
     # @return [Array<Float>] The average color value in linear RGB format.
-    def multiply_basis_function(pixels, width, height, &block)
+    def multiply_basis_function(pixels, width, height, &)
       r = g = b = 0.0
       bytes_per_pixel = 3
       bytes_per_row = width * bytes_per_pixel
@@ -108,23 +90,23 @@ module Blurhash
       [r * scale, g * scale, b * scale]
     end
 
-    # Encodes the DC (dominant color) value into a single integer.
+    # Encodes the dominant color value into a single integer.
     #
     # @param value [Array<Float>] The average color value in linear RGB format.
     # @return [Integer] The encoded DC value.
-    def encode_dc(value)
+    def encode_dominant_color(value)
       r = linear_to_srgb(value[0])
       g = linear_to_srgb(value[1])
       b = linear_to_srgb(value[2])
       (r << 16) + (g << 8) + b
     end
 
-    # Encodes the AC (additional color) value into a single integer.
+    # Encodes the additional color value into a single integer.
     #
     # @param value [Array<Float>] The average color value in linear RGB format.
     # @param maximum_value [Float] The maximum value for the AC components.
     # @return [Integer] The encoded AC value.
-    def encode_ac(value, maximum_value)
+    def encode_additional_color(value, maximum_value)
       quant_r = ((sign_pow(value[0] / maximum_value, 0.5) * 9) + 9.5)
         .floor
         .clamp(0, 18)
@@ -170,6 +152,52 @@ module Blurhash
       (val.abs**exp) * (val.negative? ? -1 : 1)
     end
 
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    # Validates the input parameters for the BlurHash encoding.
+    #
+    # @param input [Input] The input data containing pixel information.
+    # @raise [ValidationError] If the input parameters are invalid.
+    # @return [void]
+    def validate_input(input)
+      if input.component_x < 1 ||
+          input.component_x > 9 ||
+          input.component_y < 1 ||
+          input.component_y > 9
+        raise ValidationError,
+          "BlurHash must have between 1 and 9 components"
+      end
+
+      return if input.pixels.length == input.width * input.height * 3
+
+      raise ValidationError,
+        "Width and height must match the pixels array"
+    end
+
+    # Builds the factors for the BlurHash encoding. This method calculates
+    # the average color values for the dominant and additional components.
+    #
+    # @param input [Input] The input data containing pixel information.
+    # @return [Array<Array<Float>>] The dominant color and additional colors.
+    def build_factors(input)
+      factors = [].tap do |factors|
+        input.component_y.times do |y|
+          input.component_x.times do |x|
+            normalisation = x.zero? && y.zero? ? 1 : 2
+            factor = multiply_basis_function(
+              input.pixels,
+              input.width,
+              input.height
+            ) do |i, j|
+              normalisation *
+                Math.cos(Math::PI * x * i / input.width) *
+                Math.cos(Math::PI * y * j / input.height)
+            end
+            factors << factor
+          end
+        end
+      end
+
+      [factors[0], factors[1..]]
+    end
   end
 end
+# rubocop:enable Metrics/AbcSize
