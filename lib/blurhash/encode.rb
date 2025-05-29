@@ -14,7 +14,7 @@ module Blurhash
         raise ValidationError,
           "BlurHash must have between 1 and 9 components"
       end
-      unless pixels.length == width * height * 4
+      unless pixels.length == width * height * 3
         raise ValidationError,
           "Width and height must match the pixels array"
       end
@@ -66,7 +66,7 @@ module Blurhash
 
     def multiply_basis_function(pixels, width, height, &)
       r = g = b = 0.0
-      bytes_per_pixel = 4
+      bytes_per_pixel = 3
       bytes_per_row = width * bytes_per_pixel
 
       width.times do |x|
