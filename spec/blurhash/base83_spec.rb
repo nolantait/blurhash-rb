@@ -3,10 +3,10 @@
 RSpec.describe Blurhash::Base83 do
   describe ".encode" do
     it "encodes numbers to base83 strings" do
-      result = described_class.encode(1, 5)
+      result = described_class.encode(number: 1, length: 5)
       expect(result).to eq("00001")
 
-      result = described_class.encode(83, 5)
+      result = described_class.encode(number: 83, length: 5)
       expect(result).to eq("00010")
     end
   end

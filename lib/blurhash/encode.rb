@@ -4,6 +4,9 @@ module Blurhash
   class Encode
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
+    # Error raised when the arguments to Encode.call is invalid.
+    ValidationError = Class.new(Error)
+
     # Encodes an image into a BlurHash string.
     # (see #call)
     # @param (see #call)
@@ -51,22 +54,22 @@ module Blurhash
       hash = +""
 
       size_flag = (component_x - 1) + ((component_y - 1) * 9)
-      hash << Base83.encode(size_flag, 1)
+      hash << Base83.encode(number: size_flag, length: 1)
 
       if ac.any?
         actual_max = ac.map(&:max).max
         quant_max = ((actual_max * 166) - 0.5).floor.clamp(0, 82)
         max_val = (quant_max + 1) / 166.0
-        hash << Base83.encode(quant_max, 1)
+        hash << Base83.encode(number: quant_max, length: 1)
       else
         max_val = 1.0
-        hash << Base83.encode(0, 1)
+        hash << Base83.encode(number: 0, length: 1)
       end
 
-      hash << Base83.encode(encode_dc(dc), 4)
+      hash << Base83.encode(number: encode_dc(dc), length: 4)
 
       ac.each do |factor|
-        hash << Base83.encode(encode_ac(factor, max_val), 2)
+        hash << Base83.encode(number: encode_ac(factor, max_val), length: 2)
       end
 
       hash
