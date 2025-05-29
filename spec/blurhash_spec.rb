@@ -2,6 +2,6 @@
 
 RSpec.describe Blurhash do
   it "has a version number" do
-    expect(Blurhash::VERSION).not_to be nil
+    expect(Blurhash::VERSION).not_to be_nil
   end
 end

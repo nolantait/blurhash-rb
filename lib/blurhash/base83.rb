@@ -31,7 +31,7 @@ module Blurhash
     def self.decode(string)
       value = 0
 
-      string.each_char.with_index do |char, index|
+      string.each_char.with_index do |char, _index|
         digit = DIGIT_CHARACTERS.index(char)
         value = (value * 83) + digit
       end
