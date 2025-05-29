@@ -4,6 +4,8 @@ module Blurhash
   class Encode
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
+    ValidationError = Class.new(Error)
+
     def self.call(...) = new.call(...)
 
     def call(pixels:, width:, height:, component_x:, component_y:)
