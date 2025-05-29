@@ -5,6 +5,7 @@ require_relative "blurhash/error"
 require_relative "blurhash/base83"
 require_relative "blurhash/encode"
 
+# BlurHash is a compact representation of a placeholder for an image.
 module Blurhash
   # Encodes an image into a BlurHash string.
   #

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module Blurhash
+  # Encodes an image into a BlurHash string.
   class Encode
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
@@ -86,7 +87,7 @@ module Blurhash
     # @param block [Proc] A block that takes the x and y coordinates
     #   and returns the basis function value for that pixel.
     # @return [Array<Float>] The average color value in linear RGB format.
-    def multiply_basis_function(pixels, width, height, &)
+    def multiply_basis_function(pixels, width, height, &block)
       r = g = b = 0.0
       bytes_per_pixel = 3
       bytes_per_row = width * bytes_per_pixel

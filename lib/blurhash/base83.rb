@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Blurhash
+  # Base83 encoding and decoding module.
   module Base83
+    # A list of ordered characters used in Base83 encoding.
     DIGIT_CHARACTERS =
       # rubocop:disable Layout/MultilineArrayLineBreaks
       %w(
