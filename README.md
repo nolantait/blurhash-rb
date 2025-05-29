@@ -39,8 +39,7 @@ def load_image_as_rgba(path)
       r = ChunkyPNG::Color.r(pixel)
       g = ChunkyPNG::Color.g(pixel)
       b = ChunkyPNG::Color.b(pixel)
-      a = ChunkyPNG::Color.a(pixel)
-      pixels.push(r, g, b, a)
+      pixels.push(r, g, b)
     end
   end
 
