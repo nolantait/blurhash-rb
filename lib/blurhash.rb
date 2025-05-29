@@ -2,6 +2,7 @@
 
 require_relative "blurhash/version"
 require_relative "blurhash/base83"
+require_relative "blurhash/encode"
 
 module Blurhash
   class Error < StandardError; end
