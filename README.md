@@ -19,13 +19,20 @@ executing:
 
 ```bash gem install blurhash-rb ```
 
+If you add it to your Gemfile and want it to be automatically required you need
+to specify you want to `require: "blurhash"`
+
+```ruby
+gem "blurhash-rb", require: "blurhash"
+```
+
 ## Usage
 
 To use it you just need to feed in the `pixels`, `width` and `height` of the
 image.
 
 ```ruby
-require "blurhash-rb"
+require "blurhash"
 
 def load_image_as_rgba(path)
   image = ChunkyPNG::Image.from_file(path)
