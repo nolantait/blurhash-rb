@@ -1,15 +1,38 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/AbcSize
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength
 module Blurhash
   # Encodes an image into a BlurHash string.
   class Encode
     # Error raised when the arguments to Encode.call is invalid.
     ValidationError = Class.new(Error)
 
+    # Input data structure for the BlurHash encoding.
     Input = Data.define(:pixels, :width, :height, :component_x, :component_y) do
+      # The size flag for the BlurHash string, which encodes the number of
+      # components in the x and y directions.
       def size_flag
         (component_x - 1) + ((component_y - 1) * 9)
+      end
+    end
+
+    # A string buffer than encodes integers into a BlurHash string.
+    class Buffer
+      def initialize
+        @content = +""
+      end
+
+      # Adds an integer to the buffer, encoding it in Base83 format.
+      # @param number [Integer] The integer to encode.
+      # @param length [Integer] The length of the encoded string.
+      # @return [void]
+      def add(number, length)
+        @content << Base83.encode(number: number, length:)
+      end
+
+      # Returns the encoded string.
+      def to_s
+        @content
       end
     end
 
@@ -27,14 +50,15 @@ module Blurhash
     # @param component_y [Integer] The number of components in the y
     #   direction (1-9).
     # @return [String] The BlurHash string.
-    def call(pixels:, width:, height:, component_x:, component_y:)
-      input = Input.new(pixels:, width:, height:, component_x:, component_y:)
-      validate_input(input)
+    def call(pixels:, width:, height:, component_x:, component_y:) # rubocop:disable Metrics/MethodLength
+      input = Input
+        .new(pixels:, width:, height:, component_x:, component_y:)
+        .tap { validate_input(it) }
 
       dominant_color, additional_colors = build_factors(input)
 
-      (+"").tap do |hash|
-        hash << Base83.encode(number: input.size_flag, length: 1)
+      buffer = Buffer.new.tap do |hash|
+        hash.add(input.size_flag, 1)
 
         if additional_colors.any?
           quant_max = additional_colors
@@ -42,20 +66,24 @@ module Blurhash
             .max
             .then { ((it * 166) - 0.5).floor.clamp(0, 82) }
           max_val = (quant_max + 1) / 166.0
-          hash << Base83.encode(number: quant_max, length: 1)
+          hash.add(quant_max, 1)
         else
           max_val = 1.0
-          hash << Base83.encode(number: 0, length: 1)
+          hash.add(0, 1)
         end
 
-        encoded_number = encode_dominant_color(dominant_color)
-        hash << Base83.encode(number: encoded_number, length: 4)
+        dominant_color.tap do
+          encoded_number = encode_dominant_color(it)
+          hash.add(encoded_number, 4)
+        end
 
         additional_colors.each do |factor|
           encoded_number = encode_additional_color(factor, max_val)
-          hash << Base83.encode(number: encoded_number, length: 2)
+          hash.add(encoded_number, 2)
         end
       end
+
+      buffer.to_s
     end
 
     private
@@ -200,4 +228,4 @@ module Blurhash
     end
   end
 end
-# rubocop:enable Metrics/AbcSize
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength
